@@ -128,10 +128,12 @@
 #if DEBUG==0
 #define NDEBUG
 #endif
-/* #include <assert.h> */ /* Verify assumptions with assert. Turn off with #define NDEBUG */ 
+/* #include <assert.h> */ /* Verify assumptions with assert. Turn off with #define NDEBUG */
 
 /** @brief Debug message if DEBUG on */
+#ifndef IFDEBUG
 #define IFDEBUG(M) if(DEBUG) fprintf(stderr, "[DEBUG file:%s line:%d]: " M "\n", __FILE__, __LINE__); else {;}
+#endif
 
 /* limits */
 #define SBUFF 256 /**< String buffer */
@@ -713,12 +715,12 @@ void ex7_init(void)
             fprintf(stderr, "Erro: nao foi possivel abrir '%s'\n", g_filename);
             exit(EXIT_FAILURE);
         }
-        g_net = petri_read(fp, 0);
+        g_net = petri_read(fp, interactive);
         fclose(fp);
     }
     else
     {
-        g_net = petri_read(stdin, 1);
+        g_net = petri_read(stdin, interactive);
     }
 
     g_iterations      = 0;
