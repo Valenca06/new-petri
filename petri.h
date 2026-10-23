@@ -1,5 +1,5 @@
 /***************************************************************************
- *   ex7.h                                    Version 20160806.231942      *
+ *   petri.h                                  Version 20160806.231942      *
  *                                                                         *
  *   Petri Net Simulator - header file                                     *
  *   Copyright (C) 2016         by Ruben Carlo Benante                     *
@@ -27,7 +27,7 @@
 
 /* ---------------------------------------------------------------------- */
 /**
- * \file ex7.h
+ * \file petri.h
  * \ingroup GroupUnique
  * \brief Petri Net Simulator - header file
  * \details This program really do a nice job as a template, and template only!
@@ -92,7 +92,7 @@
 /* #include <libintl.h> */    /* Internationalization / translation */
 /* #include <locale.h> */     /* MACROS LC_ for location specific settings */
 /* #include "libeco.h" */ /* I/O, Math, Sound, Color, Portable Linux/Windows */
-/* #include "ex7.h" */    /* To be created for this template if needed */
+/* #include "petri.h" */  /* To be created for this template if needed */
 
 /* ---------------------------------------------------------------------- */
 /* definitions */

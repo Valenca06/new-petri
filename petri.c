@@ -1,5 +1,5 @@
 /***************************************************************************
- *   ex7.c                                    Version 20160806.231815      *
+ *   petri.c                                  Version 20160806.231815      *
  *                                                                         *
  *   Petri Net Simulator                                                   *
  *   Copyright (C) 2016         by Ruben Carlo Benante                     *
@@ -27,7 +27,7 @@
 
 /* ---------------------------------------------------------------------- */
 /**
- * @file ex7.c
+ * @file petri.c
  * @ingroup GroupUnique
  * @brief Petri Net Simulator
  * @details This program really do a nice job as a template, and template only!
@@ -60,7 +60,7 @@
 
 /*
  * Instrucoes para compilar:
- *   $gcc ex7.c -o ex7.x -Wall
+ *   $gcc petri.c -o petri.x -Wall
  *        -Wextra -ansi -pedantic-errors -g -O0 -DDEBUG=1 -DVERSION="0.1.160612.142044"
  *   ou preferencialmente inclua um makefile e use:
  *   $make
@@ -73,7 +73,7 @@
  *  * No vi use:
  *      :% !astyle -A1 -s4 -k3 -xj -SCNeUpv
  *  * No linux:
- *      $astlye -A1 -s4 -k3 -xj -SCNeUpv ex7.c
+ *      $astlye -A1 -s4 -k3 -xj -SCNeUpv petri.c
  */
 
 /* ---------------------------------------------------------------------- */
@@ -84,8 +84,9 @@
 #include <getopt.h> /* get options from system argc/argv */
 #include <string.h> /* memset */
 #include <time.h>   /* clock, time, srand */
-#include <limits.h> /* INT_MAX */
-#include "petri.h" /* To be created for this template if needed */
+#include <limits.h> /* INT_MAX, LLONG_MAX */
+#include <errno.h>  /* errno, strtol */
+#include "petri.h"  /* To be created for this template if needed */
 
 /* #include <time.h> */ /* Time and date functions */
 /* #include <math.h> */ /* Mathematics functions */
@@ -137,7 +138,7 @@
 /* limits */
 #define SBUFF 256 /**< String buffer */
 
-#define MAX_TOKENS           100  /**< overflow threshold */
+#define MAX_TOKENS           100  /**< threshold for reporting big places */
 #define DEFAULT_ITERATIONS  1000  /**< default iteration count */
 #define PREFERENCE_PERCENT    55  /**< "quer?" probability */
 
@@ -167,9 +168,9 @@ typedef struct s_transition
 typedef struct s_place
 {
     int id;
-    int tokens;
-    int max_seen;
-    int min_seen;
+    long long tokens;
+    long long max_seen;
+    long long min_seen;
     long long sum;
     long long sum2;
     long long samples;
@@ -191,12 +192,12 @@ typedef struct s_petri
 
 int verb = 0; /**< verbose level, global within the file */
 
-static const char *g_filename       = NULL;
-static t_petri    *g_net            = NULL;
-static t_transition **g_order       = NULL;
-static int         g_max_iterations = DEFAULT_ITERATIONS;
-static int         g_iterations     = 0;
-static long        g_trans_checked  = 0;
+static const char *g_filename        = NULL;
+static t_petri    *g_net             = NULL;
+static t_transition **g_order        = NULL;
+static int         g_max_iterations  = DEFAULT_ITERATIONS;
+static int         g_iterations      = 0;
+static long        g_trans_checked   = 0;
 static int         g_last_had_enabled = 1;
 
 /* ---------------------------------------------------------------------- */
@@ -213,8 +214,8 @@ static t_transition *find_trans(t_petri *net, int id);
 static int   read_arc(FILE *fp, t_petri *net, int is_input, int idx, int interactive);
 static t_petri *petri_read(FILE *fp, int interactive);
 static void  petri_free(t_petri *net);
-static int   petri_enabled(t_transition *tr, t_petri *net);
-static void  petri_fire(t_transition *tr, t_petri *net);
+static int   petri_enabled(t_transition *tr);
+static void  petri_fire(t_transition *tr);
 static int   petri_step(t_petri *net);
 static void  petri_record_stats(t_petri *net);
 static void  petri_print_stats(t_petri *net, int iters, long trans_checked, double elapsed);
@@ -241,7 +242,7 @@ static void  petri_print_stats(t_petri *net, int iters, long trans_checked, doub
  *
  * @par Example
  * @code
- *    $./ex7 -h
+ *    $./petri -h
  * @endcode
  *
  * @warning   Be carefull with...
@@ -285,13 +286,19 @@ int main(int argc, char *argv[])
                 g_filename = optarg;
                 break;
             case 'n':
-                g_max_iterations = atoi(optarg);
-                if(g_max_iterations <= 0)
+            {
+                char *end;
+                long v;
+                errno = 0;
+                v = strtol(optarg, &end, 10);
+                if(errno != 0 || end == optarg || *end != '\0' || v < 0 || v > INT_MAX)
                 {
                     fprintf(stderr, "Valor invalido para -n: %s\n", optarg);
                     return EXIT_FAILURE;
                 }
+                g_max_iterations = (int)v;
                 break;
+            }
             case '?':
             default:
                 printf("Type\n\t$man %s\nor\n\t$%s -h\nfor help.\n\n", argv[0], argv[0]);
@@ -382,32 +389,46 @@ static int read_arc(FILE *fp, t_petri *net, int is_input, int idx, int interacti
 
     if(is_input)
     {
-        if(fscanf(fp, "%d %d %d", &L, &T, &R) != 3) return 1;
+        if(fscanf(fp, "%d %d %d", &L, &T, &R) != 3)
+        {
+            fprintf(stderr, "Erro lendo arco LT #%d (esperado: L T R)\n", idx);
+            return 1;
+        }
     }
     else
     {
-        if(fscanf(fp, "%d %d %d", &T, &L, &R) != 3) return 1;
+        if(fscanf(fp, "%d %d %d", &T, &L, &R) != 3)
+        {
+            fprintf(stderr, "Erro lendo arco TL #%d (esperado: T L R)\n", idx);
+            return 1;
+        }
     }
 
     if(L < 0 || L >= net->nplaces)
     {
-        fprintf(stderr, "Lugar invalido: %d (deve estar em [0,%d])\n", L, net->nplaces - 1);
+        fprintf(stderr, "Lugar invalido no arco #%d: %d (deve estar em [0,%d])\n",
+                idx, L, net->nplaces - 1);
         return 1;
     }
     if(T < 0 || T >= net->ntrans)
     {
-        fprintf(stderr, "Transicao invalida: %d (deve estar em [0,%d])\n", T, net->ntrans - 1);
+        fprintf(stderr, "Transicao invalida no arco #%d: %d (deve estar em [0,%d])\n",
+                idx, T, net->ntrans - 1);
         return 1;
     }
     if(R <= 0)
     {
-        fprintf(stderr, "Peso invalido: %d (deve ser > 0)\n", R);
+        fprintf(stderr, "Peso invalido no arco #%d: %d (deve ser > 0)\n", idx, R);
         return 1;
     }
 
     p  = find_place(net, L);
     tr = find_trans(net, T);
-    if(!p || !tr) return 1;
+    if(!p || !tr)
+    {
+        fprintf(stderr, "Erro interno localizando lugar/transicao no arco #%d\n", idx);
+        return 1;
+    }
 
     a = mem(sizeof(*a));
     a->place_id = L;
@@ -440,20 +461,36 @@ static t_petri *petri_read(FILE *fp, int interactive)
     memset(net, 0, sizeof(*net));
 
     if(interactive) printf("Quantos lugares? (n>0)\n");
-    if(fscanf(fp, "%d", &n) != 1) goto fail;
+    if(fscanf(fp, "%d", &n) != 1)
+    {
+        fprintf(stderr, "Erro lendo numero de lugares (n)\n");
+        goto fail;
+    }
 
     if(interactive) printf("Quantas transicoes? (m)\n");
-    if(fscanf(fp, "%d", &m) != 1) goto fail;
+    if(fscanf(fp, "%d", &m) != 1)
+    {
+        fprintf(stderr, "Erro lendo numero de transicoes (m)\n");
+        goto fail;
+    }
 
     if(interactive) printf("Quantos arcos consumidores do tipo LT? (l)\n");
-    if(fscanf(fp, "%d", &l) != 1) goto fail;
+    if(fscanf(fp, "%d", &l) != 1)
+    {
+        fprintf(stderr, "Erro lendo numero de arcos LT (l)\n");
+        goto fail;
+    }
 
     if(interactive) printf("Quantos arcos produtores do tipo TL? (t)\n");
-    if(fscanf(fp, "%d", &t) != 1) goto fail;
+    if(fscanf(fp, "%d", &t) != 1)
+    {
+        fprintf(stderr, "Erro lendo numero de arcos TL (t)\n");
+        goto fail;
+    }
 
     if(n <= 0 || m < 0 || l < 0 || t < 0)
     {
-        fprintf(stderr, "Parametros invalidos da rede\n");
+        fprintf(stderr, "Parametros invalidos da rede: n=%d m=%d l=%d t=%d\n", n, m, l, t);
         goto fail;
     }
 
@@ -468,7 +505,7 @@ static t_petri *petri_read(FILE *fp, int interactive)
         p = mem(sizeof(*p));
         memset(p, 0, sizeof(*p));
         p->id       = i;
-        p->min_seen = INT_MAX;
+        p->min_seen = LLONG_MAX;
         p->next     = NULL;
         if(lastp) lastp->next = p;
         else      net->places = p;
@@ -479,7 +516,11 @@ static t_petri *petri_read(FILE *fp, int interactive)
     p = net->places;
     for(i = 0; i < n; i++)
     {
-        if(fscanf(fp, "%d", &p->tokens) != 1) goto fail;
+        if(fscanf(fp, "%lld", &p->tokens) != 1)
+        {
+            fprintf(stderr, "Erro lendo tokens do lugar %d\n", i);
+            goto fail;
+        }
         if(p->tokens < 0)
         {
             fprintf(stderr, "Tokens iniciais negativos no lugar %d\n", i);
@@ -515,12 +556,12 @@ fail:
 }
 
 /* ---------------------------------------------------------------------- */
-static int petri_enabled(t_transition *tr, t_petri *net)
+static int petri_enabled(t_transition *tr)
 {
     t_arc *a, *b;
-    int total, first;
+    long long total;
+    int first;
 
-    (void)net;
     if(!tr) return 0;
     for(a = tr->inputs; a; a = a->next)
     {
@@ -538,14 +579,12 @@ static int petri_enabled(t_transition *tr, t_petri *net)
     return 1;
 }
 
-static void petri_fire(t_transition *tr, t_petri *net)
+static void petri_fire(t_transition *tr)
 {
     t_arc *a;
     t_place *p;
 
-    (void)net;
     if(!tr) return;
-
     for(a = tr->inputs; a; a = a->next)
     {
         p = a->place;
@@ -554,11 +593,7 @@ static void petri_fire(t_transition *tr, t_petri *net)
     for(a = tr->outputs; a; a = a->next)
     {
         p = a->place;
-        if(p)
-        {
-            if(p->tokens > MAX_TOKENS - a->weight) p->tokens = MAX_TOKENS;
-            else                                   p->tokens += a->weight;
-        }
+        if(p) p->tokens += a->weight;
     }
     tr->fires++;
 }
@@ -580,11 +615,11 @@ static int petri_step(t_petri *net)
     for(i = 0; i < net->ntrans; i++)
     {
         g_trans_checked++;
-        if(petri_enabled(g_order[i], net))
+        if(petri_enabled(g_order[i]))
         {
             enabled_count++;
             if((rand() % 100) < PREFERENCE_PERCENT)
-                petri_fire(g_order[i], net);
+                petri_fire(g_order[i]);
         }
     }
 
@@ -601,7 +636,7 @@ static void petri_record_stats(t_petri *net)
         if(p->tokens > p->max_seen) p->max_seen = p->tokens;
         if(p->tokens < p->min_seen) p->min_seen = p->tokens;
         p->sum   += p->tokens;
-        p->sum2  += (long long)p->tokens * (long long)p->tokens;
+        p->sum2  += p->tokens * p->tokens;
         p->samples++;
     }
 }
@@ -633,7 +668,7 @@ static void petri_print_stats(t_petri *net, int iters, long trans_checked, doubl
         printf("Aviso: deadlock detectado (nenhuma transicao habilitada)\n");
 
     printf("\n--- Tokens por Lugar ---\n");
-    printf("%6s %6s %6s %10s %10s %10s\n",
+    printf("%6s %6s %6s %12s %10s %10s\n",
            "Lugar", "Min", "Max", "Media", "Desvio", "Amostras");
     for(p = net->places; p; p = p->next)
     {
@@ -646,9 +681,9 @@ static void petri_print_stats(t_petri *net, int iters, long trans_checked, doubl
         }
         else { mean = 0.0; sd = 0.0; }
 
-        printf("%6d %6d %6d %10.3f %10.3f %10lld\n",
+        printf("%6d %6lld %6lld %12.3f %10.3f %10lld\n",
                p->id,
-               (p->min_seen == INT_MAX) ? 0 : p->min_seen,
+               (p->min_seen == LLONG_MAX) ? 0 : p->min_seen,
                p->max_seen, mean, sd, p->samples);
     }
 
@@ -664,7 +699,7 @@ static void petri_print_stats(t_petri *net, int iters, long trans_checked, doubl
     if(!found) printf("nenhum");
     printf("\n");
 
-    printf("Lugares com overflow (max_seen >= %d): ", MAX_TOKENS);
+    printf("Lugares que atingiram o limiar (max_seen >= %d): ", MAX_TOKENS);
     found = 0;
     for(p = net->places; p; p = p->next)
         if(p->max_seen >= MAX_TOKENS) { printf("%d ", p->id); found = 1; }
@@ -717,8 +752,8 @@ static void petri_free(t_petri *net)
 void help(void)
 {
     IFDEBUG("help()");
-    printf("%s - %s\n", "ex7", "Petri Net Simulator");
-    printf("\nUsage: %s [-h|-v|-V|-f <arquivo>] [-n <iteracoes>]\n", "ex7");
+    printf("%s - %s\n", "petri", "Petri Net Simulator");
+    printf("\nUsage: %s [-h|-v|-V|-f <arquivo>] [-n <iteracoes>]\n", "petri");
     printf("\nOptions:\n");
     printf("\t-h,  --help\n\t\tShow this help.\n");
     printf("\t-V,  --version\n\t\tShow version and copyright information.\n");
@@ -746,7 +781,7 @@ void help(void)
 void copyr(void)
 {
     IFDEBUG("copyr()");
-    printf("%s - Version %s\n", "ex7", VERSION);
+    printf("%s - Version %s\n", "petri", VERSION);
     printf("\nCopyright (C) %d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2016, "Ruben Carlo Benante", "rcb@beco.cc");
     if(verb > 3) printf("copyr(): Verbose: %d\n", verb); /* -vvvv */
     exit(EXIT_FAILURE);
@@ -835,8 +870,8 @@ void ex7_init(void)
         }
     }
 
-    g_iterations      = 0;
-    g_trans_checked   = 0;
+    g_iterations       = 0;
+    g_trans_checked    = 0;
     g_last_had_enabled = 1;
 
     petri_record_stats(g_net);
@@ -849,7 +884,8 @@ void ex7_init(void)
  * @ingroup GroupUnique
  * @brief Executa uma iteracao da simulacao
  * @details Roda todas as transicoes em ordem aleatoria, aplica "pode?"
- *          e "quer?" (55%) e registra o novo estado.
+ *          e "quer?" (55%). Se nada estava habilitado, a iteracao nao e
+ *          contada e o estado nao e amostrado (deadlock).
  *
  * @return Void
  *
@@ -860,9 +896,23 @@ void ex7_init(void)
  */
 void ex7_update(void)
 {
+    t_place *p;
+
     g_last_had_enabled = petri_step(g_net);
+    if(!g_last_had_enabled)
+        return;
+
     g_iterations++;
     petri_record_stats(g_net);
+
+    if(verb >= 2)
+    {
+        printf("[iter %d]", g_iterations);
+        for(p = g_net->places; p; p = p->next)
+            printf(" P%d=%lld", p->id, p->tokens);
+        printf("\n");
+    }
+
     return;
 }
 
