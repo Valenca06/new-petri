@@ -92,7 +92,7 @@
 /* #include <libintl.h> */    /* Internationalization / translation */
 /* #include <locale.h> */     /* MACROS LC_ for location specific settings */
 /* #include "libeco.h" */ /* I/O, Math, Sound, Color, Portable Linux/Windows */
-/* #include "petri.h" */  /* To be created for this template if needed */
+/* #include "ex7.h" */    /* To be created for this template if needed */
 
 /* ---------------------------------------------------------------------- */
 /* definitions */
