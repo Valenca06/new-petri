@@ -79,6 +79,7 @@
 /* ---------------------------------------------------------------------- */
 /* includes */
 
+//Bloco 1 Pessoa 4 - adicionado
 #include <stdio.h> /* Standard I/O functions */
 #include <stdlib.h> /* Miscellaneous functions (rand, malloc, srand)*/
 #include <getopt.h> /* get options from system argc/argv */
@@ -141,10 +142,12 @@
 #define MAX_TOKENS           100  /**< threshold for reporting big places */
 #define DEFAULT_ITERATIONS  1000  /**< default iteration count */
 #define PREFERENCE_PERCENT    55  /**< "quer?" probability */
+// Fim do bloco 1
 
 /* ---------------------------------------------------------------------- */
 /* types */
 
+//Bloco 2 Pessoa 4 - adicionado
 typedef struct s_place {
     int id;
     long long tokens, max_seen, min_seen, samples;
@@ -171,10 +174,12 @@ typedef struct s_petri {
     t_transition *transitions, *order;
     int nplaces, ntrans, nlt, ntl;
 } t_petri;
+// Fim do bloco 2
 
 /* ---------------------------------------------------------------------- */
 /* globals */
 
+//Bloco 3 Pessoa 6 - adicionado
 int verb = 0; /**< verbose level, global within the file */
 
 static const char *g_filename = NULL;
@@ -195,6 +200,7 @@ static void *mem(size_t);
 static double my_sqrt(double);
 static void petri_free(t_petri *);
 static void petri_print_stats(t_petri *, int, long long, double);
+// Fim do bloco 3
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -230,6 +236,7 @@ static void petri_print_stats(t_petri *, int, long long, double);
  * @date 2016-08-06
  *
  */
+//Bloco 4 Pessoa 1 - adicionado
 int main(int argc, char *argv[])
 {
     int opt; /* return from getopt() */
@@ -288,8 +295,10 @@ int main(int argc, char *argv[])
     petri_free(g_net);
     return EXIT_SUCCESS;
 }
+// Fim do bloco 4
 
 /* ---------------------------------------------------------------------- */
+//Bloco 5 Pessoa 5 - adicionado
 static void *mem(size_t n)
 {
     void *p = calloc(1, n);
@@ -323,7 +332,9 @@ static void petri_free(t_petri *net)
     }
     free(net);
 }
+// Fim do bloco 5
 
+//Bloco 6 Pessoa 2 - adicionado
 static int read_arc(FILE *fp, t_petri *net, int is_input, int idx, int interactive)
 {
     int L, T, R;
@@ -365,7 +376,9 @@ static int read_arc(FILE *fp, t_petri *net, int is_input, int idx, int interacti
     else         { a->next = tr->outputs; tr->outputs = a; }
     return 0;
 }
+// Fim do bloco 6
 
+//Bloco 7 Pessoa 3 - adicionado
 static t_petri *petri_read(FILE *fp, int interactive)
 {
     t_petri *net = mem(sizeof(*net));
@@ -424,8 +437,10 @@ fail:
     petri_free(net);
     return NULL;
 }
+// Fim do bloco 7
 
 /* ---------------------------------------------------------------------- */
+//Bloco 8 Pessoa 6 - adicionado
 static int petri_enabled(t_transition *tr)
 {
     t_arc *a;
@@ -454,7 +469,9 @@ static int petri_rand4(void)
     left -= 2;
     return r;
 }
+// Fim do bloco 8
 
+//Bloco 9 Pessoa 2 - adicionado
 static t_transition **petri_shuffle(t_transition **head)
 {
     t_transition *part[4] = {NULL, NULL, NULL, NULL}, **end[4], *cur, *nx;
@@ -480,7 +497,9 @@ static t_transition **petri_shuffle(t_transition **head)
     }
     return tail;
 }
+// Fim do bloco 9
 
+//Bloco 10 Pessoa 3 - adicionado
 static int petri_step(t_petri *net)
 {
     t_transition *tr;
@@ -511,7 +530,9 @@ static void petri_record_stats(t_petri *net)
         p->samples++;
     }
 }
+// Fim do bloco 10
 
+//Bloco 11 Pessoa 5 - adicionado
 static void petri_print_stats(t_petri *net, int iters, long long checked, double elapsed)
 {
     t_place *p;
@@ -564,6 +585,7 @@ static void petri_print_stats(t_petri *net, int iters, long long checked, double
         if(!tr->fires) { printf("%d ", tr->id); found = 1; }
     printf("%s\n", found ? "" : "nenhum");
 }
+// Fim do bloco 11
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -576,6 +598,7 @@ static void petri_print_stats(t_petri *net, int iters, long long checked, double
  * @date 2016-08-06
  *
  */
+//Bloco 12 Pessoa 1 - adicionado
 void help(void)
 {
     IFDEBUG("help()");
@@ -593,6 +616,7 @@ void help(void)
     printf("\nAuthor:\n\tWritten by %s <%s>\n\n", "Ruben Carlo Benante", "rcb@beco.cc");
     exit(EXIT_FAILURE);
 }
+// Fim do bloco 12
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -605,6 +629,7 @@ void help(void)
  * @date 2016-08-06
  *
  */
+//Bloco 13 Pessoa 1 - adicionado
 void copyr(void)
 {
     IFDEBUG("copyr()");
@@ -613,6 +638,7 @@ void copyr(void)
     if(verb > 3) printf("copyr(): Verbose: %d\n", verb); /* -vvvv */
     exit(EXIT_FAILURE);
 }
+// Fim do bloco 13
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -655,6 +681,7 @@ void copyr(void)
  * @copyright Use this tag only if not the same as the whole file
  *
  */
+//Bloco 14 Pessoa 6 - adicionado
 void ex7_init(void)
 {
     FILE *fp;
@@ -676,8 +703,10 @@ void ex7_init(void)
     petri_record_stats(g_net);
     return;
 }
+// Fim do bloco 14
 
 /* ---------------------------------------------------------------------- */
+//Bloco 15 Pessoa 6 - adicionado
 void ex7_update(void)
 {
     t_place *p;
@@ -696,6 +725,7 @@ void ex7_update(void)
         printf("\n");
     }
 }
+// Fim do bloco 15
 
 /* ---------------------------------------------------------------------------- */
 /* vi: set ai cin et ts=4 sw=4 tw=0 wm=0 fo=croqltn : C config for Vim modeline */
