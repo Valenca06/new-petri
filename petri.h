@@ -97,7 +97,6 @@
 /* ---------------------------------------------------------------------- */
 /* definitions */
 
-// Bloco 4 Pessoa 2 - adicionado
 #ifndef VERSION                   /* gcc -DVERSION="0.1.160612.142628" */
 #define VERSION "20160806.231942" /**< Version Number (string) */
 #endif
@@ -123,22 +122,21 @@
 
 /* limits */
 #define SBUFF 256 /**< String buffer */
-// Fim do bloco 4
 
 /* ---------------------------------------------------------------------- */
 /* globals */
 
-// Bloco 5 Pessoa 1 - adicionado
 extern int verb; /**< verbose level, global within the file */
 
 /* ---------------------------------------------------------------------- */
 /* prototypes */
 
+// Bloco 18 Pessoa 6 - adicionado
 void help(void);       /**< Prints help information and exit */
 void copyr(void);      /**< Prints copyright information and exit */
 void ex7_init(void);   /**< Initializes some operations before start */
 void ex7_update(void); /**< Updates values during program cycle */
-// Fim do bloco 5
+// Fim do bloco 18
 
 #endif /* NOT def _EX3_H */
 

@@ -79,7 +79,6 @@
 /* ---------------------------------------------------------------------- */
 /* includes */
 
-//Bloco 2 Pessoa 4 - adicionado
 #include <stdio.h> /* Standard I/O functions */
 #include <stdlib.h> /* Miscellaneous functions (rand, malloc, srand)*/
 #include <getopt.h> /* get options from system argc/argv */
@@ -142,12 +141,10 @@
 #define MAX_TOKENS           100  /**< threshold for reporting big places */
 #define DEFAULT_ITERATIONS  1000  /**< default iteration count */
 #define PREFERENCE_PERCENT    55  /**< "quer?" probability */
-// Fim do bloco 2
 
 /* ---------------------------------------------------------------------- */
 /* types */
 
-//Bloco 1 Pessoa 4 - adicionado
 typedef struct s_place {
     int id;
     long long tokens, max_seen, min_seen, samples;
@@ -174,12 +171,10 @@ typedef struct s_petri {
     t_transition *transitions, *order;
     int nplaces, ntrans, nlt, ntl;
 } t_petri;
-// Fim do bloco 1
 
 /* ---------------------------------------------------------------------- */
 /* globals */
 
-//Bloco 3 Pessoa 6 - adicionado
 int verb = 0; /**< verbose level, global within the file */
 
 static const char *g_filename = NULL;
@@ -200,7 +195,6 @@ static void *mem(size_t);
 static double my_sqrt(double);
 static void petri_free(t_petri *);
 static void petri_print_stats(t_petri *, int, long long, double);
-// Fim do bloco 3
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -236,9 +230,9 @@ static void petri_print_stats(t_petri *, int, long long, double);
  * @date 2016-08-06
  *
  */
-//Bloco 17 Pessoa 1 - adicionado
 int main(int argc, char *argv[])
 {
+    //Bloco 1 Pessoa 1 - adicionado
     int opt; /* return from getopt() */
     clock_t t0;
     double elapsed;
@@ -294,29 +288,33 @@ int main(int argc, char *argv[])
 
     petri_free(g_net);
     return EXIT_SUCCESS;
+    // Fim do bloco 1
 }
-// Fim do bloco 17
 
 /* ---------------------------------------------------------------------- */
-//Bloco 6 Pessoa 5 - adicionado
 static void *mem(size_t n)
 {
+    //Bloco 2 Pessoa 1 - adicionado
     void *p = calloc(1, n);
     if(!p) { perror("calloc"); exit(EXIT_FAILURE); }
     return p;
+    // Fim do bloco 2
 }
 
 static double my_sqrt(double x)
 {
+    //Bloco 3 Pessoa 1 - adicionado
     double lo = 0.0, hi = x < 1.0 ? 1.0 : x, mid;
     int i;
     if(x <= 0.0) return 0.0;
     for(i = 0; i < 80; i++) { mid = (lo + hi) / 2; if(mid * mid < x) lo = mid; else hi = mid; }
     return (lo + hi) / 2;
+    // Fim do bloco 3
 }
 
 static void petri_free(t_petri *net)
 {
+    //Bloco 14 Pessoa 5 - adicionado
     t_place *p, *pn;
     t_transition *tr, *trn;
     t_arc *a, *an;
@@ -331,12 +329,12 @@ static void petri_free(t_petri *net)
         free(tr);
     }
     free(net);
+    // Fim do bloco 14
 }
-// Fim do bloco 6
 
-//Bloco 7 Pessoa 2 - adicionado
 static int read_arc(FILE *fp, t_petri *net, int is_input, int idx, int interactive)
 {
+    //Bloco 7 Pessoa 3 - adicionado
     int L, T, R;
     t_place *p;
     t_transition *tr;
@@ -375,12 +373,12 @@ static int read_arc(FILE *fp, t_petri *net, int is_input, int idx, int interacti
     if(is_input) { a->next = tr->inputs;  tr->inputs  = a; }
     else         { a->next = tr->outputs; tr->outputs = a; }
     return 0;
+    // Fim do bloco 7
 }
-// Fim do bloco 7
 
-//Bloco 8 Pessoa 3 - adicionado
 static t_petri *petri_read(FILE *fp, int interactive)
 {
+    //Bloco 5 Pessoa 2 - adicionado
     t_petri *net = mem(sizeof(*net));
     t_place *tailp = NULL, *p;
     t_transition *tailt = NULL, *tr;
@@ -436,30 +434,34 @@ static t_petri *petri_read(FILE *fp, int interactive)
 fail:
     petri_free(net);
     return NULL;
+    // Fim do bloco 5
 }
-// Fim do bloco 8
 
 /* ---------------------------------------------------------------------- */
-//Bloco 9 Pessoa 6 - adicionado
 static int petri_enabled(t_transition *tr)
 {
+    //Bloco 4 Pessoa 1 - adicionado
     t_arc *a;
 
     for(a = tr->inputs; a; a = a->next)
         if(a->place->tokens < a->weight) return 0;
     return 1;
+    // Fim do bloco 4
 }
 
 static void petri_fire(t_transition *tr)
 {
+    //Bloco 6 Pessoa 2 - adicionado
     t_arc *a;
     for(a = tr->inputs; a; a = a->next)  a->place->tokens -= a->weight;
     for(a = tr->outputs; a; a = a->next) a->place->tokens += a->weight;
     tr->fires++;
+    // Fim do bloco 6
 }
 
 static int petri_rand4(void)
 {
+    //Bloco 11 Pessoa 4 - adicionado
     static int word = 0, left = 0;
     int r;
 
@@ -468,12 +470,12 @@ static int petri_rand4(void)
     word >>= 2;
     left -= 2;
     return r;
+    // Fim do bloco 11
 }
-// Fim do bloco 9
 
-//Bloco 10 Pessoa 2 - adicionado
 static t_transition **petri_shuffle(t_transition **head)
 {
+    //Bloco 12 Pessoa 5 - adicionado
     t_transition *part[4] = {NULL, NULL, NULL, NULL}, **end[4], *cur, *nx;
     t_transition **tail;
     int i, c;
@@ -496,12 +498,12 @@ static t_transition **petri_shuffle(t_transition **head)
         if(part[i]) { *tail = part[i]; tail = end[i]; }
     }
     return tail;
+    // Fim do bloco 12
 }
-// Fim do bloco 10
 
-//Bloco 11 Pessoa 3 - adicionado
 static int petri_step(t_petri *net)
 {
+    //Bloco 13 Pessoa 5 - adicionado
     t_transition *tr;
     int enabled = 0;
 
@@ -516,10 +518,12 @@ static int petri_step(t_petri *net)
         }
     }
     return enabled > 0;
+    // Fim do bloco 13
 }
 
 static void petri_record_stats(t_petri *net)
 {
+    //Bloco 10 Pessoa 4 - adicionado
     t_place *p;
     for(p = net->places; p; p = p->next)
     {
@@ -529,12 +533,12 @@ static void petri_record_stats(t_petri *net)
         p->sum2 += (double)p->tokens * (double)p->tokens;
         p->samples++;
     }
+    // Fim do bloco 10
 }
-// Fim do bloco 11
 
-//Bloco 12 Pessoa 5 - adicionado
 static void petri_print_stats(t_petri *net, int iters, long long checked, double elapsed)
 {
+    //Bloco 9 Pessoa 4 - adicionado
     t_place *p;
     t_transition *tr;
     int found;
@@ -584,8 +588,8 @@ static void petri_print_stats(t_petri *net, int iters, long long checked, double
     for(found = 0, tr = net->transitions; tr; tr = tr->next)
         if(!tr->fires) { printf("%d ", tr->id); found = 1; }
     printf("%s\n", found ? "" : "nenhum");
+    // Fim do bloco 9
 }
-// Fim do bloco 12
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -598,9 +602,9 @@ static void petri_print_stats(t_petri *net, int iters, long long checked, double
  * @date 2016-08-06
  *
  */
-//Bloco 15 Pessoa 1 - adicionado
 void help(void)
 {
+    //Bloco 15 Pessoa 6 - adicionado
     IFDEBUG("help()");
     printf("%s - %s\n", "petri", "Petri Net Simulator");
     printf("\nUsage: %s [-h|-v|-V|-f <arquivo>] [-n <iteracoes>]\n", "petri");
@@ -615,8 +619,8 @@ void help(void)
     printf("\nTodo:\n\tLong options not implemented yet.\n");
     printf("\nAuthor:\n\tWritten by %s <%s>\n\n", "Ruben Carlo Benante", "rcb@beco.cc");
     exit(EXIT_FAILURE);
+    // Fim do bloco 15
 }
-// Fim do bloco 15
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -629,16 +633,16 @@ void help(void)
  * @date 2016-08-06
  *
  */
-//Bloco 16 Pessoa 1 - adicionado
 void copyr(void)
 {
+    //Bloco 8 Pessoa 3 - adicionado
     IFDEBUG("copyr()");
     printf("%s - Version %s\n", "petri", VERSION);
     printf("\nCopyright (C) %d %s <%s>, GNU GPL version 2 <http://gnu.org/licenses/gpl.html>. This  is  free  software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law. USE IT AS IT IS. The author takes no responsability to any damage this software may inflige in your data.\n\n", 2016, "Ruben Carlo Benante", "rcb@beco.cc");
     if(verb > 3) printf("copyr(): Verbose: %d\n", verb); /* -vvvv */
     exit(EXIT_FAILURE);
+    // Fim do bloco 8
 }
-// Fim do bloco 16
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -681,9 +685,9 @@ void copyr(void)
  * @copyright Use this tag only if not the same as the whole file
  *
  */
-//Bloco 13 Pessoa 6 - adicionado
 void ex7_init(void)
 {
+    //Bloco 16 Pessoa 6 - adicionado
     FILE *fp;
     int interactive = (g_filename == NULL);
 
@@ -702,13 +706,13 @@ void ex7_init(void)
 
     petri_record_stats(g_net);
     return;
+    // Fim do bloco 16
 }
-// Fim do bloco 13
 
 /* ---------------------------------------------------------------------- */
-//Bloco 14 Pessoa 6 - adicionado
 void ex7_update(void)
 {
+    //Bloco 17 Pessoa 6 - adicionado
     t_place *p;
 
     g_last_ok = petri_step(g_net);
@@ -724,8 +728,8 @@ void ex7_update(void)
             printf(" P%d=%lld", p->id, p->tokens);
         printf("\n");
     }
+    // Fim do bloco 17
 }
-// Fim do bloco 14
 
 /* ---------------------------------------------------------------------------- */
 /* vi: set ai cin et ts=4 sw=4 tw=0 wm=0 fo=croqltn : C config for Vim modeline */
