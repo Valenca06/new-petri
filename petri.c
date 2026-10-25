@@ -82,8 +82,8 @@
 #include <stdio.h> /* Standard I/O functions */
 #include <stdlib.h> /* Miscellaneous functions (rand, malloc, srand)*/
 #include <getopt.h> /* get options from system argc/argv */
-#include <string.h> /* memset */
 #include <time.h>   /* clock, time, srand */
+#include <unistd.h> /* getpid */
 #include <limits.h> /* INT_MAX, LLONG_MAX */
 #include <errno.h>  /* errno, strtol */
 #include "petri.h"  /* To be created for this template if needed */
@@ -147,12 +147,14 @@
 
 typedef struct s_place {
     int id;
-    long long tokens, max_seen, min_seen, sum, sum2, samples;
+    long long tokens, max_seen, min_seen, samples;
+    double sum, sum2;
     struct s_place *next;
 } t_place;
 
 typedef struct s_arc {
-    int place_id, weight;
+    int place_id;
+    long long weight;
     t_place *place;
     struct s_arc *next;
 } t_arc;
@@ -161,12 +163,12 @@ typedef struct s_transition {
     int id;
     long long fires;
     t_arc *inputs, *outputs;
-    struct s_transition *next;
+    struct s_transition *next, *order_next;
 } t_transition;
 
 typedef struct s_petri {
     t_place *places;
-    t_transition *transitions;
+    t_transition *transitions, *order;
     int nplaces, ntrans, nlt, ntl;
 } t_petri;
 
@@ -177,11 +179,10 @@ int verb = 0; /**< verbose level, global within the file */
 
 static const char *g_filename = NULL;
 static t_petri    *g_net = NULL;
-static t_transition **g_order = NULL;
 static int  g_max_iterations = DEFAULT_ITERATIONS;
 static int  g_iterations = 0;
 static int  g_last_ok = 1;
-static long g_trans_checked = 0;
+static long long g_trans_checked = 0;
 
 /* ---------------------------------------------------------------------- */
 /* prototypes */
@@ -193,7 +194,7 @@ void ex7_init(void); /* global initialization function */
 static void *mem(size_t);
 static double my_sqrt(double);
 static void petri_free(t_petri *);
-static void petri_print_stats(t_petri *, int, long, double);
+static void petri_print_stats(t_petri *, int, long long, double);
 
 /* ---------------------------------------------------------------------- */
 /**
@@ -285,7 +286,6 @@ int main(int argc, char *argv[])
     petri_print_stats(g_net, g_iterations, g_trans_checked, elapsed);
 
     petri_free(g_net);
-    free(g_order);
     return EXIT_SUCCESS;
 }
 
@@ -329,11 +329,12 @@ static int read_arc(FILE *fp, t_petri *net, int is_input, int idx, int interacti
     int L, T, R;
     t_place *p;
     t_transition *tr;
-    t_arc *a;
+    t_arc *a, *b;
 
     if(interactive)
-        printf("Digite a trinca AT%s%d de arco %s no formato %s:\n",
-               "L", idx, is_input ? "consumidor LT" : "produtor TL",
+        printf("Digite a trinca %s%d de arco %s no formato %s:\n",
+               is_input ? "ALT" : "ATL", idx,
+               is_input ? "consumidor LT" : "produtor TL",
                is_input ? "L T R" : "T L R");
 
     if(is_input)
@@ -352,6 +353,9 @@ static int read_arc(FILE *fp, t_petri *net, int is_input, int idx, int interacti
     for(p = net->places; p && p->id != L; p = p->next) ;
     for(tr = net->transitions; tr && tr->id != T; tr = tr->next) ;
     if(!p || !tr) { fprintf(stderr, "Erro interno no arco #%d\n", idx); return 1; }
+
+    for(b = is_input ? tr->inputs : tr->outputs; b && b->place != p; b = b->next) ;
+    if(b) { b->weight += R; return 0; }
 
     a = mem(sizeof(*a));
     a->place_id = L;
@@ -406,9 +410,10 @@ static t_petri *petri_read(FILE *fp, int interactive)
     {
         tr = mem(sizeof(*tr));
         tr->id = i;
-        if(tailt) tailt->next = tr; else net->transitions = tr;
+        if(tailt) tailt->next = tailt->order_next = tr; else net->transitions = tr;
         tailt = tr;
     }
+    net->order = net->transitions;
 
     for(i = 0; i < l; i++) if(read_arc(fp, net, 1, i, interactive)) goto fail;
     for(i = 0; i < t; i++) if(read_arc(fp, net, 0, i, interactive)) goto fail;
@@ -423,16 +428,10 @@ fail:
 /* ---------------------------------------------------------------------- */
 static int petri_enabled(t_transition *tr)
 {
-    t_arc *a, *b;
-    long long total;
+    t_arc *a;
 
     for(a = tr->inputs; a; a = a->next)
-    {
-        total = 0;
-        for(b = tr->inputs; b; b = b->next)
-            if(b->place_id == a->place_id) total += b->weight;
-        if(!a->place || a->place->tokens < total) return 0;
-    }
+        if(a->place->tokens < a->weight) return 0;
     return 1;
 }
 
@@ -444,23 +443,57 @@ static void petri_fire(t_transition *tr)
     tr->fires++;
 }
 
+static int petri_rand4(void)
+{
+    static int word = 0, left = 0;
+    int r;
+
+    if(left < 2) { word = rand(); left = 15; }
+    r = word & 3;
+    word >>= 2;
+    left -= 2;
+    return r;
+}
+
+static t_transition **petri_shuffle(t_transition **head)
+{
+    t_transition *part[4] = {NULL, NULL, NULL, NULL}, **end[4], *cur, *nx;
+    t_transition **tail;
+    int i, c;
+
+    if(!*head) return head;
+    if(!(*head)->order_next) return &(*head)->order_next;
+    for(i = 0; i < 4; i++) end[i] = &part[i];
+    for(cur = *head; cur; cur = nx)
+    {
+        nx = cur->order_next;
+        c = petri_rand4();
+        *end[c] = cur;
+        end[c] = &cur->order_next;
+    }
+    for(i = 0; i < 4; i++) *end[i] = NULL;
+    tail = head;
+    for(i = 0; i < 4; i++)
+    {
+        end[i] = petri_shuffle(&part[i]);
+        if(part[i]) { *tail = part[i]; tail = end[i]; }
+    }
+    return tail;
+}
+
 static int petri_step(t_petri *net)
 {
-    int i, j, n = net->ntrans, enabled = 0;
-    t_transition *tmp;
+    t_transition *tr;
+    int enabled = 0;
 
-    for(i = n - 1; i > 0; i--)
-    {
-        j = rand() % (i + 1);
-        tmp = g_order[i]; g_order[i] = g_order[j]; g_order[j] = tmp;
-    }
-    for(i = 0; i < n; i++)
+    petri_shuffle(&net->order);
+    for(tr = net->order; tr; tr = tr->order_next)
     {
         g_trans_checked++;
-        if(petri_enabled(g_order[i]))
+        if(petri_enabled(tr))
         {
             enabled++;
-            if((rand() % 100) < PREFERENCE_PERCENT) petri_fire(g_order[i]);
+            if((rand() % 100) < PREFERENCE_PERCENT) petri_fire(tr);
         }
     }
     return enabled > 0;
@@ -473,13 +506,13 @@ static void petri_record_stats(t_petri *net)
     {
         if(p->tokens > p->max_seen) p->max_seen = p->tokens;
         if(p->tokens < p->min_seen) p->min_seen = p->tokens;
-        p->sum += p->tokens;
-        p->sum2 += p->tokens * p->tokens;
+        p->sum += (double)p->tokens;
+        p->sum2 += (double)p->tokens * (double)p->tokens;
         p->samples++;
     }
 }
 
-static void petri_print_stats(t_petri *net, int iters, long checked, double elapsed)
+static void petri_print_stats(t_petri *net, int iters, long long checked, double elapsed)
 {
     t_place *p;
     t_transition *tr;
@@ -490,11 +523,11 @@ static void petri_print_stats(t_petri *net, int iters, long checked, double elap
 
     printf("\n=== Estatisticas da Rede de Petri ===\n");
     printf("Iteracoes realizadas ....: %d\n", iters);
-    printf("Transicoes analisadas ...: %ld\n", checked);
+    printf("Transicoes analisadas ...: %lld\n", checked);
     printf("Tempo decorrido .........: %.6f s\n", elapsed);
     if(elapsed > 0.0)
         printf("Iteracoes/segundo ......: %.2f\nTransicoes/segundo .....: %.2f\n",
-               iters / elapsed, checked / elapsed);
+               iters / elapsed, (double)checked / elapsed);
     else
         printf("Iteracoes/segundo ......: n/a (tempo zero)\nTransicoes/segundo .....: n/a (tempo zero)\n");
     if(!g_last_ok)
@@ -504,8 +537,8 @@ static void petri_print_stats(t_petri *net, int iters, long checked, double elap
            "Lugar", "Min", "Max", "Media", "Desvio", "Amostras");
     for(p = net->places; p; p = p->next)
     {
-        mean = (double)p->sum / (double)p->samples;
-        var = (double)p->sum2 / (double)p->samples - mean * mean;
+        mean = p->sum / (double)p->samples;
+        var = p->sum2 / (double)p->samples - mean * mean;
         sd = my_sqrt(var < 0.0 ? 0.0 : var);
         printf("%6d %6lld %6lld %12.3f %10.3f %10lld\n",
                p->id, (p->min_seen == LLONG_MAX) ? 0 : p->min_seen,
@@ -625,11 +658,10 @@ void copyr(void)
 void ex7_init(void)
 {
     FILE *fp;
-    t_transition *tr;
-    int i, interactive = (g_filename == NULL);
+    int interactive = (g_filename == NULL);
 
     IFDEBUG("ex7_init()");
-    srand((unsigned)time(NULL));
+    srand((unsigned)time(NULL) ^ ((unsigned)getpid() << 16));
 
     fp = g_filename ? fopen(g_filename, "r") : stdin;
     if(!fp)
@@ -641,12 +673,6 @@ void ex7_init(void)
     if(g_filename) fclose(fp);
     if(!g_net) exit(EXIT_FAILURE);
 
-    if(g_net->ntrans > 0)
-    {
-        g_order = mem((size_t)g_net->ntrans * sizeof(*g_order));
-        for(tr = g_net->transitions, i = 0; tr; tr = tr->next, i++)
-            g_order[i] = tr;
-    }
     petri_record_stats(g_net);
     return;
 }
